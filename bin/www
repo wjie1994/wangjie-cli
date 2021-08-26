@@ -1,0 +1,4 @@
+#! /usr/bin/env node
+
+// 入口
+require('../src/main');
