@@ -5,7 +5,6 @@
 const Inquirer = require('inquirer');
 let downloadGitRepo = require('download-git-repo');
 const { promisify } = require('util');
-let ncp = require('ncp');
 const path = require('path');
 const MetalSmith = require('metalsmith');
 const { render } = require('consolidate').ejs;
@@ -18,7 +17,6 @@ const { loading } = require('../utils');
 const { cacheDir, ORGANIZATION, compileReg } = require('../constants');
 
 downloadGitRepo = promisify(downloadGitRepo);
-ncp = promisify(ncp);
 
 /**
  * 下载模板
@@ -93,51 +91,35 @@ module.exports = async function (...args) {
   const dest = await loading(downTemplate, 'Downloading template ...')(repo, tag);
 
   try {
-    // 判断模板是否需要编译   如果下载的模板中存在ask.js就认为是需要编译的
-    if (!fs.existsSync(path.join(dest, 'ask.js'))) {
-      await ncp(dest, path.resolve(projectName));
-    } else {
-      await new Promise((resolve, reject) => {
-        MetalSmith(__dirname)
-          .source(dest) // 文件来源
-          .destination(path.resolve(projectName)) // 拷贝到哪里
-          .use(async (files, metal, done) => {
-            // eslint-disable-next-line import/no-dynamic-require
-            // eslint-disable-next-line global-require
-            const ask = require(path.join(dest, 'ask.js'));
-            const obj = await Inquirer.prompt(ask);
-            // 通过 metal.metadata 把参数传递到下一个 use 的metal
-            const meta = metal.metadata();
-            Object.assign(meta, obj);
-            delete files['ask.js'];
-            done();
-          })
-          .use((files, metal) => {
-            const ask = metal.metadata();
-            // 需要编译的文件类型
-            const exts = ['.js', '.json', '.jsx', '.ejs'];
-            Object.keys(files).forEach(async (file) => {
-              // 如果文件是需要编译的类型
-              if (exts.some((ext) => file.includes(ext))) {
-                // content默认是 Buffer
-                let content = files[file].contents.toString();
-                // 有需要编译的字段才编译
-                if (compileReg.test(content)) {
-                  content = await render(content, ask);
-                  files[file].contents = Buffer.from(content);
-                }
+    await new Promise((resolve, reject) => {
+      MetalSmith(__dirname)
+        .source(dest) // 文件来源
+        .destination(path.resolve(projectName)) // 拷贝到哪里
+        .use((files) => {
+          // 需要编译的文件类型
+          const exts = ['.js', '.json', '.jsx', '.ejs'];
+          Object.keys(files).forEach(async (file) => {
+            // 如果文件是需要编译的类型
+            if (exts.some((ext) => file.includes(ext))) {
+              // content默认是 Buffer
+              let content = files[file].contents.toString();
+              // 有需要编译的字段才编译
+              if (compileReg.test(content)) {
+                // 编译 projectName
+                content = await render(content, { projectName });
+                files[file].contents = Buffer.from(content);
               }
-            });
-          })
-          .build((error) => {
-            if (error) {
-              reject(error);
-            } else {
-              resolve();
             }
           });
-      });
-    }
+        })
+        .build((error) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve();
+          }
+        });
+    });
     console.log(`\r\n${chalk.green('Success')}\r\n`);
     console.log(` ${chalk.cyan(`$  cd ${projectName}`)}`);
     console.log(` ${chalk.cyan('$  npm install')}`);
