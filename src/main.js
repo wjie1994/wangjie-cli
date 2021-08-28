@@ -13,7 +13,7 @@ const commandList = {
     alias: 'c',
     description: 'create a new app',
     option: ['-f, --force', 'overwrite target directory if it exist'],
-    examples: ['wangjie-cli create <app-name>'],
+    examples: ['wj create <app-name>'],
   },
   '*': {
     alias: '',
