@@ -64,7 +64,7 @@ program.on('--help', () => {
     whitespaceBreak: true,
   })}`);
 
-  console.log(`\r\nRun ${chalk.cyan('wangjie-cli <command> --help')} for detailed usage of given command\r\n`);
+  console.log(`\r\nRun ${chalk.cyan('wj <command> --help')} for detailed usage of given command\r\n`);
 });
 
 program.version(version);
